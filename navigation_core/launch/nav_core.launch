@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+
+<!-- comment -->
+
+<launch>
+
+	<!-- <include file="$(find ydlidar_ros)/launch/TG.launch" /> -->
+	<!-- <include file="$(find zed_imu)/launch/zed_combined.launch" /> -->
+    <node name="go_to_waypoint" pkg="navigation_core" type="waypoint_controller.py" />
+    <node name="fake_waypoint" pkg="navigation_core" type="fake_waypoints_publisher.py" />
+    
+</launch>
