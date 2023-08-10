@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import rospy
 from std_msgs.msg import Float32
@@ -23,10 +23,10 @@ gps2lon = 0.0
 rover_lat = 0.0
 rover_lon = 0.0
 
-ref_coord_1_lat = 0.0
-ref_coord_1_lon = 0.0
-ref_coord_2_lat = 0.0
-ref_coord_2_lon = 0.0
+ref_coord_1_lat = 0.1
+ref_coord_1_lon = 0.12
+ref_coord_2_lat = 0.13
+ref_coord_2_lon = 0.14
 
 history = []
 
@@ -108,6 +108,8 @@ def main():
     pub_path_bearing = rospy.Publisher('/r1/path_bearing', Float32, queue_size=5)
     pub_xte = rospy.Publisher('/r1/xte', Float32, queue_size=5)
     pub_exe_status = rospy.Publisher('/r1/exe_status', Bool, queue_size=5)
+    pub_dost_to_goal = rospy.Publisher('/r1/dist_to_goal_pose', Float32, queue_size=5)
+    pub_rover_pos = rospy.Publisher("/r1/rover_gps", NavSatFix, queue_size=5)
 
     rospy.init_node('waypoint_heading_controller', anonymous=True)
     rate = rospy.Rate(10) # 10hz
@@ -124,17 +126,28 @@ def main():
         #rospy.Subscriber("ar1_ref_heading", Float32, ar1_ref_heading_callback)
 
         # rover's position is the average of two gps
-        rover_lat = gps1lat + gps2lat
-        rover_lon = gps1lon + gps2lon
+        rover_lat = (gps1lat + gps2lat)/2
+        rover_lon = (gps1lon + gps2lon)/2
+        roverGPS = NavSatFix()
+        roverGPS.latitude = rover_lat
+        roverGPS.longitude = rover_lon
 
-        path_bearing =  get_bearing(latitudes_field[0], longitudes_field[0], latitudes_field[1], longitudes_field[1])
-        #dist_bw_pts =  get_distance(latitudes_field[0], longitudes_field[0], latitudes_field[1], longitudes_field[1])
+        latitudes_field   = [ref_coord_1_lat, ref_coord_2_lat]
+        longitudes_field = [ref_coord_1_lon, ref_coord_2_lon]
+
+        path_bearing = get_bearing(latitudes_field[0], longitudes_field[0], latitudes_field[1], longitudes_field[1])
+        dist_bw_pts  =  get_distance(latitudes_field[0], longitudes_field[0], latitudes_field[1], longitudes_field[1])
         dist_to_goal_pose = get_distance(rover_lat, rover_lon, latitudes_field[1], longitudes_field[1]) # in meters
         
+        
+        path_bearing = 360 - path_bearing
+        
+        #rospy.loginfo(path_bearing)
+
         dy = (latitudes_field[1]- latitudes_field[0])
         dx = (longitudes_field[1]-longitudes_field[0])
-        #m = dy/dx
-        m = 1
+        m = dy/dx
+        #m = 1
         c = latitudes_field[0] - m*longitudes_field[0]
         a = m
         b = -1.0
@@ -143,28 +156,35 @@ def main():
         d = (a*x1 + b*y1 + c) / (math.sqrt(a*a + b*b))
         xte = d*100000
 
-        ref_heading = path_bearing + 6*xte
+        ref_heading = path_bearing - 8*xte
+
+        if (ref_heading < 0):
+            ref_heading = 360 + ref_heading
       
         # linear motion controller to move rover to goal position
-        kp_lx = 1.0
+        kp_lx = 0.5
         ux_raw = kp_lx*dist_to_goal_pose
-        ux = saturation_fn(ux_raw, 0.2, -0.2)
+        ux = saturation_fn(ux_raw, 0.18, -0.18)
         #ux = 0.14
 
         # run status
-        if (dist_to_goal_pose < 0.1):
+        if (dist_to_goal_pose < 2.5):
             run_status_flag = True
+            ux = 0
         else:
             run_status_flag = False
         
         error_heading = ref_heading - rover_heading
         
-        if (error_heading < -180):
-            error_heading = 360 + error_heading
-        
-        k_p = 0.0015
+        if (error_heading > 180):
+            error_heading = error_heading - 360
+        elif (error_heading < -180):
+            error_heading = error_heading + 360
+        rospy.loginfo(error_heading)
+
+        k_p = 0.002
         k_i = 0.0001
-        
+
         heading_error_i = heading_error_i + error_heading
         
         if (abs(error_heading) < 1):
@@ -172,17 +192,17 @@ def main():
         if (abs(k_i*heading_error_i) > 2):
             heading_error_i = 0
         
-        uz_raw = k_p*error_heading + k_i*heading_error_i
-
-        if ux_raw < 0:
-            uz_raw = -uz_raw
+        uz_raw = (k_p*error_heading + k_i*heading_error_i)
         
-        uz = saturation_fn(uz_raw, 0.12, -0.12)
+        uz = saturation_fn(uz_raw, 0.20, -0.20)
 
         cmd.linear.x = ux
         cmd.angular.z = uz
         
-        #rospy.loginfo(cmd)
+        cmd.angular.x = error_heading
+
+        #################### PRINT ##################
+        #rospy.loginfo(dist_to_goal_pose)
         
         # wait for meaningful data to arrive
         if (rover_heading == 1000.0):
@@ -194,6 +214,8 @@ def main():
         pub_path_bearing.publish(path_bearing)
         pub_xte.publish(xte)
         pub_exe_status.publish(run_status_flag)
+        pub_dost_to_goal.publish(dist_to_goal_pose)
+        pub_rover_pos.publish(roverGPS)
 
         rate.sleep()
 
