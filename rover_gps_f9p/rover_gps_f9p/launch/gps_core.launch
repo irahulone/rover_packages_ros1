@@ -1,0 +1,10 @@
+<launch>
+    <node name="gps_f9p_differential"        pkg="rosserial_python"      type="serial_node.py">
+    <param name="port"              type="string"               value="/dev/ttyACM0"/>
+    <param name="baud"              type="int"                  value="57600"/>
+    </node>
+
+<node name="get_gps" pkg="rover_gps_f9p" type="f9p_read_core.py" />
+
+</launch>
+
