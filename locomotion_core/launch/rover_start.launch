@@ -1,0 +1,9 @@
+<launch>
+<node name="r1_enable" pkg="locomotion_core" type="enable.py" />
+<node name="r1_du1_ctrl" pkg="locomotion_core" type="command_du.py" />
+<node name="r1_driver" pkg="locomotion_core" type="driver_node.py" />
+<node name="r1_state_controller" pkg="locomotion_core" type="robot_state_node.py" />
+<include file="/home/rover-du1/rover_ws_v5/src/teleop_twist_joy/launch/teleop.launch" />
+
+</launch>
+
