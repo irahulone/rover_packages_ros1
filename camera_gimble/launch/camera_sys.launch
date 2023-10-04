@@ -1,0 +1,9 @@
+<launch>
+    <node name="vc4_arduino"        pkg="rosserial_python"      type="serial_node.py">
+    <param name="port"              type="string"               value="/dev/ttyACM0"/>
+    <param name="baud"              type="int"                  value="57600"/>
+    </node>
+
+<node name="gimble" pkg="camera_gimble" type="gimble_spin.py" />
+
+</launch>
