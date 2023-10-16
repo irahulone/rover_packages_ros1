@@ -1,0 +1,7 @@
+<launch>
+	<include file="$(find zed_ar_track_alvar_example)/launch/zed_ar_track_alvar.launch"/>
+	<include file="$(find follow_the_leader)/launch/camera_sys.launch"/>
+	<node name="zed_rotation" pkg="follow_the_leader" type="camera_rotation_ctrl.py" />
+	<node name="rover_pose_broadcast" pkg="follow_the_leader" type="rover_pose_broadcaster.py" />
+	<node name="marker_resolve" pkg="follow_the_leader" type="ar_marker_resolve.py" />
+</launch>
